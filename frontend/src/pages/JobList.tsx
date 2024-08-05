@@ -32,7 +32,7 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
     status: Set<string>;
     [key: string]: Set<string>;
   }
-
+  const apiUrl = import.meta.env.VITE_APP_URL;
   const JobList: React.FC = () => {
     const location = useLocation();
     const [jobId, setJobId] = useState<string | null>(null)
@@ -81,7 +81,7 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
     const fetchJobs = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`https://7gm1rk55y3.execute-api.us-east-1.amazonaws.com/dev/CRUD?email=${email}`);
+        const response = await axios.get(`${apiUrl}/getjobs?email=${email}`);
         let jobsData: Job[];
 
         if (Array.isArray(response.data)) {
@@ -117,33 +117,20 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
       }));
     };
 
-    const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files ? e.target.files[0] : null;
-      setSelectedFile(file);
-    };
-    
     const handleAddSubmit = async (e: FormEvent<HTMLFormElement>) => {
-      console.log("------------------")
       e.preventDefault();
-      if (selectedFile) {
-        console.log("-------------")
-        const fileReader = new FileReader();
-        fileReader.onload = async () => {
-          const base64Content = fileReader.result?.toString().split(',')[1]; 
-          if (base64Content) {
-            console.log("}}}}}}")
+    
       try {
-        const data = await axios.post('https://7gm1rk55y3.execute-api.us-east-1.amazonaws.com/dev/CRUD', {
+        // Assuming formData contains the form fields
+        const data = await axios.post(`${apiUrl}/createjob`, {
           ...formData,
-          file_name: selectedFile.name,
-          file_content: base64Content, 
-        },
-      {
-        headers: {
-          Authorization: `Bearer`
-        }
-      });
-        console.log(data)
+        }, {
+          headers: {
+            Authorization: `Bearer YOUR_ACCESS_TOKEN` // Replace with your actual token if needed
+          }
+        });
+    
+        console.log(data);
         setShowAddForm(false);
         fetchJobs();
         resetForm();
@@ -151,49 +138,14 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
         console.error('Error creating job:', error);
         setError('Failed to create job. Please try again.');
       }
-    }
-  }
-  fileReader.readAsDataURL(selectedFile);
-      // if (selectedFile) {
-      //   const fileReader = new FileReader();
-      //   fileReader.onload = async () => {
-      //     const base64Content = fileReader.result?.toString().split(',')[1]; // Remove data URL scheme prefix
-      //     if (base64Content) {
-      //       try {
-      //         const uploadResponse = await fetch('https://7gm1rk55y3.execute-api.us-east-1.amazonaws.com/dev/upload', {
-      //           method: 'POST',
-      //           headers: {
-      //             'Content-Type': 'application/json'
-      //           },
-      //           body: JSON.stringify({
-      //             file_name: selectedFile.name,
-      //             file_content: base64Content,
-      //             jobId: jobId
-      //           })
-      //         });
-      //         console.log(uploadResponse)
-      //         const uploadResponseData = await uploadResponse.json();
-      //         console.log(uploadResponseData)
-      //         fileUrl = uploadResponseData.body; // Assuming the URL or identifier of the uploaded file is returned in the response
-      //       } catch (error) {
-      //         console.error('Error uploading file:', error);
-      //         setError('Failed to upload file. Please try again.');
-      //         return;
-      //       }
-      //     }
-      //   };
-      //   fileReader.readAsDataURL(selectedFile);
-      // }
-
     };
-  }
 
     const handleEditSubmit = async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       if (!editJobId) return;
       const { email, ...updateData } = formData;
       try {
-        await axios.put(`https://7gm1rk55y3.execute-api.us-east-1.amazonaws.com/dev/CRUD`, {
+        await axios.put(`${apiUrl}/updatejob`, {
           jobId: editJobId,
           updateData
         },
@@ -213,9 +165,11 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
 
     const handleDelete = async (jobId: string) => {
       try {
-        await axios.delete(`https://7gm1rk55y3.execute-api.us-east-1.amazonaws.com/dev/CRUD`, {
+        await axios.delete(`${apiUrl}/deletejob`, {
           data: { jobId }
-        });
+        },
+        
+      );
         fetchJobs();
       } catch (error) {
         console.error('Error deleting job:', error);
@@ -308,7 +262,7 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
                 <th className="px-6 py-3">Status</th>
                 <th className="px-6 py-3">Work Type</th>
                 <th className="px-6 py-3">Location</th>
-                <th className="px-6 py-3">File</th>
+               
                 <th className="px-6 py-3">Actions</th>
               </tr>
             </thead>
@@ -325,11 +279,11 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
                     <td className="px-6 py-4">{job.status}</td>
                     <td className="px-6 py-4">{job.worktype}</td>
                     <td className="px-6 py-4">{job.location}</td>
-                    <td className="px-6 py-4">
+                    {/* <td className="px-6 py-4">
                       {job.file_key ? (
                         <a href={job.file_key} target="_blank" rel="noopener noreferrer" className="text-blue-500">View File</a>
                       ) : 'No File'}
-                    </td>
+                    </td> */}
                     <td className="px-6 py-4">
                       <button onClick={() => handleEdit(job)} className="text-yellow-500 hover:text-yellow-600 mr-2">Edit</button>
                       <button onClick={() => handleDelete(job.jobId)} className="text-red-500 hover:text-red-600">Delete</button>
@@ -398,14 +352,14 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
                   required
                   className="mb-2 w-full p-2 border border-gray-300 rounded"
                 />
-                <input
+                {/* <input
                   type="file"
                   onChange={handleFileChange}
                   className="mb-2 w-full"
                 />
                 {selectedFile && (
                   <p className="mb-2 text-gray-600">Selected file: {selectedFile.name}</p>
-                )}
+                )} */}
                 <button
                   type="submit"
                   className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
@@ -481,7 +435,7 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
                   required
                   className="mb-2 w-full p-2 border border-gray-300 rounded"
                 />
-                <input
+                {/* <input
                   type="file"
                   onChange={handleFileChange}
                   className="mb-2 w-full"
@@ -491,7 +445,7 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
                 )}
                 {selectedFile && (
                   <p className="mb-2 text-gray-600">Selected file: {selectedFile.name}</p>
-                )}
+                )} */}
                 <button
                   type="submit"
                   className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"

@@ -26,23 +26,23 @@ export const VerifyEmail: React.FC = () => {
       }
       console.log("Verification successful:", data);
       toast.success("Verification successful!"); 
-      try {
-        const response = await axios.post('https://7gm1rk55y3.execute-api.us-east-1.amazonaws.com/dev/Signup', {
-          name: name,
-          email: email
-        });
+      // try {
+      //   const response = await axios.post('https://7gm1rk55y3.execute-api.us-east-1.amazonaws.com/dev/Signup', {
+      //     name: name,
+      //     email: email
+      //   });
 
-        if (response.status === 200) {
-          toast.success("User data stored successfully!");
+      //   if (response.status === 200) {
+      //     toast.success("User data stored successfully!");
 
-          navigate('/', { state: { email } });
-        } else {
-          toast.error("Failed to store user data.");
-        }
-      } catch (error) {
-        console.error('Error storing user data:', error);
-        toast.error("Failed to store user data.");
-      }
+          navigate('/', { state: { email ,name} });
+      //   } else {
+      //     toast.error("Failed to store user data.");
+      //   }
+      // } catch (error) {
+      //   console.error('Error storing user data:', error);
+      //   toast.error("Failed to store user data.");
+      // }
     });
   };
 

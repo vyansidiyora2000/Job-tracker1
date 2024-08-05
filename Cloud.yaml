@@ -1,0 +1,633 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates an S3 bucket, Cognito User Pool, Lambda functions, DynamoDB tables, and API Gateway
+
+Resources:
+
+# -------------------------------------------------------------S3----------------------------------------------------------------
+  # S3Bucket:
+  #   Type: AWS::S3::Bucket
+  #   Properties:
+  #     BucketName: jobtrackeruserpool
+  #     CorsConfiguration:
+  #       CorsRules:
+  #         - AllowedHeaders:
+  #             - '*'
+  #           AllowedMethods:
+  #             - GET
+  #             - PUT
+  #             - POST
+  #             - DELETE
+  #           AllowedOrigins:
+  #             - '*'
+  #           ExposedHeaders:
+  #             - 'ETag'
+  #     VersioningConfiguration:
+  #       Status: Enabled
+  #     LifecycleConfiguration:
+  #       Rules:
+  #         - Id: ExpireOldFiles
+  #           Status: Enabled
+  #           ExpirationInDays: 30
+
+# -------------------------------------------------------------------------------------------------------------------------------
+
+# ---------------------------------------------------------Cognito---------------------------------------------------------------
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: b00979170-vyansi
+      AutoVerifiedAttributes:
+        - email 
+      UsernameAttributes:
+        - email
+      EmailVerificationMessage: 'Please verify your email address for my-app: {####}'
+      EmailVerificationSubject: 'Verify your email for my-app'
+
+  CognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: job
+      UserPoolId: !Ref CognitoUserPool
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: job-client
+      UserPoolId: !Ref CognitoUserPool
+# ---------------------------------------------------------------------------------------------------------------------------------
+
+# -----------------------------------------------------------Lambda----------------------------------------------------------------
+  # AddUserFunction:
+  #   Type: AWS::Lambda::Function
+  #   Properties:
+  #     FunctionName: user_details
+  #     Handler: lambda_function.lambda_handler
+  #     Runtime: python3.12
+  #     Role: arn:aws:iam::051309582518:role/LabRole
+  #     Code:
+  #       S3Bucket: b00979170
+  #       S3Key: userdetails.zip
+
+  # GetUserFunction:
+  #   Type: AWS::Lambda::Function
+  #   Properties:
+  #     FunctionName: get_User
+  #     Handler: lambda_function.lambda_handler
+  #     Runtime: python3.12
+  #     Role: arn:aws:iam::051309582518:role/LabRole
+  #     Code:
+  #       S3Bucket: b00979170
+  #       S3Key: getuser.zip
+
+  # GetUserProfileFunction:
+  #   Type: AWS::Lambda::Function
+  #   Properties:
+  #     FunctionName: get_user_profile
+  #     Handler: lambda_function.lambda_handler
+  #     Runtime: python3.12
+  #     Role: arn:aws:iam::051309582518:role/LabRole
+  #     Code:
+  #       S3Bucket: b00979170
+  #       S3Key: getprofile.zip
+
+  CreateJobFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: create_job
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Role: arn:aws:iam::051309582518:role/LabRole
+      Code:
+        S3Bucket: b00979170
+        S3Key: createjob.zip
+  
+  GetJobFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: get_alljobsbyemail
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Role: arn:aws:iam::051309582518:role/LabRole
+      Code:
+        S3Bucket: b00979170
+        S3Key: getjob.zip
+  
+  UpdateJobFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: update_job
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Role: arn:aws:iam::051309582518:role/LabRole
+      Code:
+        S3Bucket: b00979170
+        S3Key: updatejob.zip
+
+  DeleteJobFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: delete_job
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Role: arn:aws:iam::051309582518:role/LabRole
+      Code:
+        S3Bucket: b00979170
+        S3Key: deletejob.zip
+
+  
+
+# # ---------------------------------------------------------------------------------------------------------------------------------
+
+# # -----------------------------------------------------------DynamoDB--------------------------------------------------------------
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: User_Details
+      AttributeDefinitions:   
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  JobTrackTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: job_tracker
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+ 
+# # ---------------------------------------------------------------------------------------------------------------------------------
+
+# # -----------------------------------------------------------------------------------------------------------------------------------
+
+# #-------------------------------------------------------------ApiGateway-------------------------------------------------------------
+ 
+  ApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: jobtracker11
+      Description: API Gateway for my application
+      FailOnWarnings: true
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  ApiGatewayAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: CognitoAuthorizer
+      RestApiId: !Ref ApiGateway
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      ProviderARNs:
+        - !GetAtt CognitoUserPool.Arn
+
+#   # -------------- /createjob -------------------
+
+  ApiGatewayjobtrackerResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: "createjob"
+      RestApiId: !Ref ApiGateway
+    DependsOn: ApiGateway
+
+  ApiGatewaycreateCors:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      HttpMethod: OPTIONS
+      ResourceId: !Ref ApiGatewayjobtrackerResource
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ""
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          ResponseModels:
+            application/json: "Empty"
+
+  ApiGatewayAddJobMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref ApiGatewayjobtrackerResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt  CreateJobFunction.Arn
+      RequestModels:
+        application/json: Empty
+
+
+            # -------------- /getjob -------------------
+  ApiGatewayjobtrackergetResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: "getjobs"
+      RestApiId: !Ref ApiGateway
+    DependsOn: ApiGateway
+
+  ApiGatewayGetCors:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      HttpMethod: OPTIONS
+      ResourceId: !Ref ApiGatewayjobtrackergetResource
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ""
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          ResponseModels:
+            application/json: "Empty"
+
+  ApiGatewayGetJObMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref ApiGatewayjobtrackergetResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        RequestTemplates:
+          application/json: $input.json('$')
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt GetJobFunction.Arn
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseTemplates:
+              "application/json": $input.json('$')
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      RequestParameters:
+        method.request.querystring.name: true
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+
+  # -------------- /Putjob -------------------
+  ApiGatewayjobtrackerputResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: "updatejob"
+      RestApiId: !Ref ApiGateway
+    DependsOn: ApiGateway
+
+  ApiGatewayupdateCors:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      HttpMethod: OPTIONS
+      ResourceId: !Ref ApiGatewayjobtrackerputResource
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ""
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          ResponseModels:
+            application/json: "Empty"
+
+  ApiGatewayPutMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref ApiGatewayjobtrackerputResource
+      HttpMethod: PUT
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        RequestTemplates:
+          application/json: $input.json('$')
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt UpdateJobFunction.Arn
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseTemplates:
+              "application/json": $input.json('$')
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      RequestParameters:
+        method.request.querystring.name: false
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+          # -------------- /delete -------------------
+  ApiGatewayjobtrackerdeleteResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: "deletejob"
+      RestApiId: !Ref ApiGateway
+    DependsOn: ApiGateway
+
+  ApiGatewaydeleteCors:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      HttpMethod: OPTIONS
+      ResourceId: !Ref ApiGatewayjobtrackerdeleteResource
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ""
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          ResponseModels:
+            application/json: "Empty"   
+
+  ApiGatewayDeleteMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref ApiGatewayjobtrackerdeleteResource
+      HttpMethod: DELETE
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        RequestTemplates:
+          application/json: $input.json('$')
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt DeleteJobFunction.Arn
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseTemplates:
+              "application/json": $input.json('$')
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      RequestParameters:
+        method.request.querystring.name: false
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+
+
+  
+
+ 
+#   # --------------Invoke Lambda Permissions----------------
+
+  LambdaPermissionCreateJob:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt  CreateJobFunction.Arn
+      Principal: apigateway.amazonaws.com
+
+  LambdaPermissionGetJob:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt  GetJobFunction.Arn
+      Principal: apigateway.amazonaws.com
+    
+  LambdaPermissionUpdatjob:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt  UpdateJobFunction.Arn
+      Principal: apigateway.amazonaws.com
+  
+  LambdaPermissionDeletejob:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt DeleteJobFunction.Arn
+      Principal: apigateway.amazonaws.com
+  
+ 
+#   # -------------------------------------------------------
+
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: 
+      - ApiGatewayAddJobMethod
+      - ApiGatewayGetJObMethod
+      - ApiGatewayPutMethod
+      - ApiGatewayDeleteMethod
+   
+    Properties:
+      RestApiId: !Ref ApiGateway
+
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref ApiGateway
+      StageName: prod
+      DeploymentId: !Ref ApiGatewayDeployment
+
+# # ---------------------------------------------------------------------------------------------------------------------
+# # ---------------------------------------------------EC2---------------------------------------------------------------
+ 
+  jobtrackerKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: jobtracker
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-051f8a213df8bc089
+      InstanceType: t2.micro
+      KeyName: !Ref jobtrackerKeyPair
+      SecurityGroupIds:
+        - !Ref jobtrackerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: jobtracker
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo mkdir -p /home/ec2-user/Job-tracker1/
+          sudo yum update -y
+          sudo yum install git -y 
+          cd /home/ec2-user/Job-tracker1
+          sudo git clone https://github.com/vyansidiyora2000/Job-tracker1.git
+          cd Job-tracker1
+          sudo rm -f .env
+          echo "VITE_APP_URL='https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod'" | sudo tee .env
+          echo "VITE_APP_COGNITO_USER_POOL_ID=${CognitoUserPool}" | sudo tee -a .env
+          echo "VITE_APP_COGNITO_CLIENT_ID=${CognitoUserPoolClient}" | sudo tee -a .env
+          sudo yum install nodejs npm -y
+          sudo npm install 
+          sudo npm run dev &
+
+  jobtrackerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: jobtrackerSecurityGroup
+      GroupDescription: Allow SSH and port 3000 access from anywhere
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+Outputs:
+  KeyPairName:
+    Description: Name of the Key Pair
+    Value: !Ref jobtrackerKeyPair
+
+# # -----------------------------------------------------------------------------------------------------------------------
+# #----------------------------------------------------Backup---------------------------------------------------------------
+  # DynamoDBTableBackupVault:
+  #   Type: AWS::Backup::BackupVault
+  #   Properties:
+  #     BackupVaultName: aniverse-backup-vault
+
+  # DynamoDBTableBackupSelection:
+  #   Type: AWS::Backup::BackupSelection
+  #   Properties:
+  #     BackupPlanId: !Ref DynamoDBTableBackupPlan
+  #     BackupSelection:
+  #       SelectionName: aniVerse-DB-backup-selection
+  #       IamRoleArn: arn:aws:iam::992382755227:role/LabRole
+  #       Resources:
+  #         - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/b00968316-Video
+  #         - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/b00968316-User
+
+  # DynamoDBTableBackupPlan:
+  #   Type: AWS::Backup::BackupPlan
+  #   Properties:
+  #     BackupPlan:
+  #       BackupPlanName: aniVerse-DB-backup-plan
+  #       BackupPlanRule:
+  #         - RuleName: aniVerse-DB-backup-rule
+  #           ScheduleExpression: cron(0 0 * * ? *) 
+  #           TargetBackupVault: !Ref DynamoDBTableBackupVault
+  #           StartWindowMinutes: 60 
+  #           CompletionWindowMinutes: 10080 
+  #           Lifecycle:
+  #             DeleteAfterDays: 30 
+            
+
+# # ------------------------------------------------------------------------------------------------------------------------
+          
+# Outputs:
+
+#   S3BucketName:
+#     Description: Name of the S3 bucket
+#     Value: !Ref S3Bucket
+
+#   CloudFrontDistributionDomainName:
+#     Description: Domain name of the CloudFront distribution
+#     Value: !GetAtt CloudFrontDistribution.DomainName
+
+#   CognitoUserPoolId:
+#     Description: ID of the Cognito User Pool
+#     Value: !Ref CognitoUserPool
+
+#   CognitoUserPoolDomain:
+#     Description: Domain name for the Cognito User Pool
+#     Value: !Ref CognitoUserPoolDomain
+
+#   CognitoUserPoolClientId:
+#     Description: ID of the Cognito User Pool Client
+#     Value: !Ref CognitoUserPoolClient
+
+#   EC2InstancePublicIp:
+#     Description: Public IP address of the EC2 instance
+#     Value: !GetAtt EC2Instance.PublicIp
+  
+  

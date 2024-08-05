@@ -24,14 +24,14 @@ export const Login: React.FC = () => {
       await authenticate(email, password);
       
       // Fetch additional user details from DynamoDB
-      const response = await axios.get(`https://7gm1rk55y3.execute-api.us-east-1.amazonaws.com/dev/Login?email=${email}`);
-      console.log(response)
-      // Assuming response.data contains user profile data like name
-      const userProfile = response.data.body;
+      // const response = await axios.get(`https://7gm1rk55y3.execute-api.us-east-1.amazonaws.com/dev/Login?email=${email}`);
+      // console.log(response)
+      // // Assuming response.data contains user profile data like name
+      // const userProfile = response.data.body;
 
-      console.log("User authenticated");
-      localStorage.setItem("email",email);
-      navigate('/', { state: { email, userProfile } });
+      // console.log("User authenticated");
+      // localStorage.setItem("email",email);
+      navigate('/', { state: { email } });
       // Navigate to home or another protected page with user profile data
     } catch (error) {
       console.error("Authentication failed:", error);
