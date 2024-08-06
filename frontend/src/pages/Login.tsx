@@ -22,6 +22,7 @@ export const Login: React.FC = () => {
     try {
       // Authenticate user using Cognito
       await authenticate(email, password);
+      localStorage.setItem("email",email)
       
       // Fetch additional user details from DynamoDB
       // const response = await axios.get(`https://7gm1rk55y3.execute-api.us-east-1.amazonaws.com/dev/Login?email=${email}`);
@@ -31,7 +32,7 @@ export const Login: React.FC = () => {
 
       // console.log("User authenticated");
       // localStorage.setItem("email",email);
-      navigate('/', { state: { email } });
+      navigate('/joblist', { state: { email } });
       // Navigate to home or another protected page with user profile data
     } catch (error) {
       console.error("Authentication failed:", error);

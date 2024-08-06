@@ -66,6 +66,7 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
     
 
     useEffect(() => {
+      console.log(email)
       getSession()
         .then((session: CognitoUserSession) => {
           const idToken = session.getIdToken().getJwtToken();
@@ -82,6 +83,7 @@ import { CognitoUserSession } from 'amazon-cognito-identity-js';
       setLoading(true);
       try {
         const response = await axios.get(`${apiUrl}/getjobs?email=${email}`);
+        console.log(response)
         let jobsData: Job[];
 
         if (Array.isArray(response.data)) {
